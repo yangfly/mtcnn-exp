@@ -1,0 +1,7 @@
+data
+models
+crop
+*v2*
+
+# python
+__pycache__
