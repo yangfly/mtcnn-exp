@@ -86,9 +86,7 @@ class CustomRecordIter(mx.io.DataIter):
                 data[i] = np.flip(data[i], axis=2)
                 label[i, (1,3)] = label[i, (3,1)] * -1
 
-def MtcnnDataset(network, subset, size, batch_size, num_workers, mean=127.5, std=0.0078125):
-    # data = [nd.array(n, 3, 12, 12)]  # (RGB)
-    # label = [nd.array(1,5)]
+def MtcnnDataset(network, subset, size, batch_size, num_workers, mean=127.5, std=0.0078125, seed=0):
     dataset = CustomRecordIter(
 		path_imgrec        = 'data/widerface/mtcnn/{}_{}.rec'.format(network, subset),
         path_imgidx        = 'data/widerface/mtcnn/{}_{}.idx'.format(network, subset),
@@ -99,5 +97,6 @@ def MtcnnDataset(network, subset, size, batch_size, num_workers, mean=127.5, std
         prefetch_buffer    = 20,
         label_width        = 5,
         mean_pixels        = mean,
-        scale              = std)
+        scale              = std,
+        seed               = seed)
     return dataset

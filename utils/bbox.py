@@ -142,31 +142,26 @@ def crop_pad(image, bbox, size):
     return np.stack(patchs, axis=0)
 
 
-def bbox_iou(bbox_a, bbox_b):
-    """Calculate Intersection-Over-Union(IOU) of two bounding boxes.
+def bbox_iou(bbox, bboxes):
+    """Calculate Intersection-Over-Union(IOU) of bbox and bboxes.
 
     Parameters
     ----------
-    bbox_a : numpy.ndarray, n x 4
-    bbox_b : numpy.ndarray, n x 4
+    bbox : numpy.ndarray, (4,)
+    bboxes : numpy.ndarray, n x 4
 
     Returns
     -------
-        numpy.ndarray, n x 4
+        numpy.ndarray, (n,)
     """
-    if bbox_a.ndim == 1:
-        bbox_a = bbox_a[None, ...]
-    
-    if bbox_a.shape[1] < 4 or bbox_b.shape[1] < 4:
+    if bbox.shape[0] < 4 or bboxes.shape[1] < 4:
         raise IndexError("Bounding boxes axis 1 must have at least length 4")
+    
+    tl = np.maximum(bbox[:2], bboxes[:, :2])
+    br = np.minimum(bbox[2:4], bboxes[:, 2:4])
 
-    tl = np.maximum(bbox_a[:, None, :2], bbox_b[:, :2])
-    br = np.minimum(bbox_a[:, None, 2:4], bbox_b[:, 2:4])
-
-    area_i = np.prod(br - tl, axis=2) * (tl < br).all(axis=2)
-    area_a = np.prod(bbox_a[:, 2:4] - bbox_a[:, :2], axis=1)
-    area_b = np.prod(bbox_b[:, 2:4] - bbox_b[:, :2], axis=1)
-    iou = area_i / (area_a[:, None] + area_b - area_i)
-    if iou.shape[0] == 1:
-        iou = iou.flatten()
+    inter = np.prod(br - tl, axis=1) * (tl < br).all(axis=1)
+    area = np.prod(bbox[2:4] - bbox[:2], axis=0)
+    areas = np.prod(bboxes[:, 2:4] - bboxes[:, :2], axis=1)
+    iou = inter / (area + areas - inter)
     return iou

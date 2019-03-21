@@ -4,7 +4,7 @@ import logging
 import mxnet as mx
 import numpy as np
 
-__all__ = ['random_seed', 'init_net', 'load_model', 'save_model', 'FileLogger']
+__all__ = ['random_seed', 'init_net', 'load_model', 'save_model', 'net_export', 'FileLogger']
 
 logging.basicConfig(
     level   = logging.INFO,
@@ -58,6 +58,18 @@ def save_model(net, prefix, epoch, maps, end_epoch):
         net.save_parameters(model_path)
     fmap.write(msg + '\n')
     fmap.close()
+
+def net_export(net, json):
+    x = mx.sym.var('data', shape=(1, 3, net.size, net.size))
+    try:
+        y = net(x)
+    except Exception:
+        net.initialize()
+        net.hybridize()
+        y = net(x)
+    if isinstance(y, tuple):
+        y = mx.sym.Group(y)
+    y.save(json)
 
 def FileLogger(path):
     if not os.path.exists(os.path.dirname(path)):

@@ -12,14 +12,14 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train MTCNN Detector.')
     parser.add_argument('--network', type=str, default='pnet',
                         help='Network name in [pnet, rnet, onet]')
-    parser.add_argument('--batch-size', type=int, default=256,
+    parser.add_argument('--batch-size', type=int, default=128,
                         help='Training mini-batch size')
-    parser.add_argument('--gpus', type=str, default='7',
+    parser.add_argument('--gpus', type=str, default='6',
                         help='Training with GPUs, you can specify 0,1 for example.')
     parser.add_argument('--num-workers', '-j', dest='num_workers', type=int,
                         default=16, help='Number of data workers, you can use larger '
                         'number to accelerate data loading, if you CPU and GPUs are powerful.')
-    parser.add_argument('--init', type=str, default='msra',
+    parser.add_argument('--init', type=str, default='xavier',
                         help='Network initializer optional [xavier, msra]')
     parser.add_argument('--seed', type=int, default=233,
                         help='Random seed to be fixed.')
@@ -31,10 +31,10 @@ def parse_args():
     solver.add_argument('--start-epoch', type=int, default=0,
                         help='Starting epoch for resuming, default is 0 for new training.'
                         'You can specify it to 100 for example to start from 100 epoch.')
-    solver.add_argument('--epochs', type=int, default=30,
+    solver.add_argument('--epochs', type=int, default=32,
                         help='Training epochs.')
     solver.add_argument('--log-interval', type=int, default=100,
-                        help='Logging mini-batch interval. Default is 1.')
+                        help='Logging mini-batch interval. Default is 100.')
     solver.add_argument('--val-interval', type=int, default=1,
                         help='Epoch interval for validation, increase the number will reduce the '
                              'training time if validation is slow.')
@@ -45,15 +45,17 @@ def parse_args():
 
     optimizer = parser.add_argument_group('SGD Optimizer')
     optimizer.add_argument('--lr', type=float, default=0.01,
-                           help='Learning rate, default is 0.1')
+                           help='Learning rate, default is 0.01')
     optimizer.add_argument('--lr-decay', type=float, default=0.1,
                            help='decay rate of learning rate. default is 0.1.')
-    optimizer.add_argument('--lr-decay-epoch', type=str, default='10,18,24,27',
-                           help='epoches at which learning rate decays. default is 25,35,40,43.')
+    optimizer.add_argument('--lr-decay-epoch', type=str, default='14,28',
+                           help='epoches at which learning rate decays. default is 10,18,24,27.')
     optimizer.add_argument('--momentum', type=float, default=0.9,
                            help='SGD momentum, default is 0.9')
     optimizer.add_argument('--wd', type=float, default=0.0005,
                            help='Weight decay, default is 5e-4')
+    # optimizer.add_argument('--clip-gradient', type=float, default=1.0,
+    #                        help='Clip gradient in sgd.')
 
     loss = parser.add_argument_group('Mtcnn Loss')
     loss.add_argument('--pos-thresh', type=float, default=0.65,
@@ -62,13 +64,13 @@ def parse_args():
                       help='Iou between part_thresh and pos_thresh assigned part face.')
     loss.add_argument('--neg-thresh', type=float, default=0.3,
                       help='IoU less than neg_thresh assigned negative face.')
-    loss.add_argument('--ohem-ratio', type=float, default=0.8,
+    loss.add_argument('--ohem-ratio', type=float, default=0.7,
                       help='The ratio of loss to been kept after online hard example mining.')
     loss.add_argument('--cls-weight', type=float, default=1.0,
                       help='Loss weight for cls_loss.')
-    loss.add_argument('--loc-weight', type=float, default=5.0,
+    loss.add_argument('--loc-weight', type=float, default=1.0,
                       help='Loss weight for loc_loss.')
-    loss.add_argument('--loc-loss', type=str, default='smoothl1',
+    loss.add_argument('--loc-loss', type=str, default='euclid',
                       help='Which loss as loc_loss, optional in [smoothl1, euclid].')
 
     args = parser.parse_args()
@@ -105,7 +107,7 @@ def train(args):
     ctx = ctx if ctx else [mx.cpu()]
     net = nn.get_mtcnn(args.network)
     utils.init_net(net, args.resume, args.init, ctx)
-    train_data = utils.MtcnnDataset(args.network, 'train', net.size, args.batch_size, args.num_workers)
+    train_data = utils.MtcnnDataset(args.network, 'train', net.size, args.batch_size, args.num_workers, seed=args.seed)
     val_data = utils.MtcnnDataset(args.network, 'val', net.size, args.batch_size, args.num_workers)
     mtcnn_loss = nn.MtcnnLoss(args.pos_thresh, args.part_thresh, args.neg_thresh, args.ohem_ratio, args.cls_weight, args.loc_weight, args.loc_loss)
     trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': args.lr, 'wd': args.wd, 'momentum': args.momentum})
@@ -182,7 +184,7 @@ def train(args):
             ploter.update([val_acc, val_mse, train_acc, cls_loss, loc_loss, sum_loss, trainer.learning_rate])
             ploter.plot(save_path=args.save_prefix + 'train.png')
             utils.save_model(net, args.save_prefix, epoch, maps, args.epochs)
-    # net.export(args.save_prefix + args.network, args.epochs)
+    utils.net_export(net, args.save_prefix + args.network + '.json')
 
 if __name__ == '__main__':
     args = parse_args()

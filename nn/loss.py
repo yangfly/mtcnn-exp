@@ -66,8 +66,8 @@ class MtcnnLoss(gluon.Block):
         label = nd.where(pos_mask, nd.ones_like(mask), nd.zeros_like(mask))
         loss = -nd.pick(pred, label, axis=1, keepdims=False)
         loss = nd.where(mask, loss, nd.zeros_like(loss))
-        keep_num = self._ohem_ratio * nd.sum(mask).asscalar()
-        keep_mask = nd.argsort(loss) < keep_num
+        keep_num = round(self._ohem_ratio * nd.sum(mask).asscalar())
+        keep_mask = loss.argsort(axis=0, is_ascend=False).argsort(axis=0) < keep_num
         loss = nd.where(keep_mask, loss, nd.zeros_like(loss))
         return loss / max(keep_num, 1)
         
@@ -75,9 +75,9 @@ class MtcnnLoss(gluon.Block):
         if pred.ndim > 2:
             pred = pred.reshape(0, -1)
         mask = label[:,0] >= self._part_thresh
-        loss = nd.abs(pred, label[:,1:])
+        loss = nd.abs(pred - label[:,1:])
         loss = nd.where(loss > ratio, loss - 0.5 * ratio, (0.5 / ratio) * nd.square(loss))
-        loss = nd.sum(loss, axis=0, exclude=True)
+        loss = nd.mean(loss, axis=1)
         loss = nd.where(mask, loss, nd.zeros_like(loss))
         return loss / max(nd.sum(mask).asscalar(), 1)
     
@@ -85,8 +85,8 @@ class MtcnnLoss(gluon.Block):
         if pred.ndim > 2:
             pred = pred.reshape(0, -1)
         mask = label[:,0] >= self._part_thresh
-        loss = nd.square(nd.abs(pred, label[:,1:]))
-        loss = nd.sum(loss, axis=0, exclude=True)
+        loss = nd.square(pred - label[:,1:]) / 2
+        loss = nd.mean(loss, axis=1)
         loss = nd.where(mask, loss, nd.zeros_like(loss))
         return loss / max(nd.sum(mask).asscalar(), 1)
     
@@ -113,7 +113,7 @@ class MtcnnLoss(gluon.Block):
             loc_preds.append(nd.random.randn(bs, 4, 1, 1))
             labels.append(nd.random.uniform(0, 1, (bs, 5)))
         sum_losses, cls_losses, loc_losses = self.forward(cls_preds, loc_preds, labels)
-        print('real ratio: {}'.format(sum([nd.sum(loss > 0).asscalar() for loss in sum_losses]) / batch_size))
+        print('sum ratio: {}'.format(sum([nd.sum(loss > 0).asscalar() for loss in sum_losses]) / batch_size))
         for i in range(num_gpu):
             print('------------- on gpu {} ---------------'.format(i))
             print(sum_losses[i])
@@ -121,5 +121,5 @@ class MtcnnLoss(gluon.Block):
             print(loc_losses[i])
 
 if __name__ == '__main__':
-    mloss = MtcnnLoss()
+    mloss = MtcnnLoss(loc_loss='euclid')
     mloss.test()
