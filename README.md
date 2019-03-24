@@ -10,6 +10,7 @@
   - [#5](https://github.com/zuoqing1988/train-mtcnn/issues/5): DiscROC 准确率。
 
 - [AITTSMD/MTCNN-Tensorflow](https://github.com/AITTSMD/MTCNN-Tensorflow) tensorflow 3.5
+  - [#6](https://github.com/AITTSMD/MTCNN-Tensorflow/issues/6): Pnet 准确率问题
 
 <img src="https://camo.githubusercontent.com/52bd155eb111c221923d47daeb21886416bb6179/68747470733a2f2f692e6c6f6c692e6e65742f323031372f30382f33302f353961366238373566313739322e706e67" width="500" />
 
@@ -38,6 +39,16 @@
   - train: 984792  (598251  199356  199464)
   - val: 254360  (154425  51511  51536) 
 - v1: 4:1:1
-- v2: (0.18, 0.9) [50, 10, 20]  min(w, h) < 25 or max(w, h) < 30
+- v2: 很低 (0.18, 0.9) [50, 10, 20]  min(w, h) < 25 or max(w, h) < 30
   - train: 2057290  (1102561  484812  510866)
   - val: 523244  (279235  123882  132353)
+
+  celeba 数据集 生成负样本
+
+
+  - mxnet-mtcnn: 
+    - Sample: 12880 images done, pos: 199475 part: 548912 neg: 812070
+    - Choose: total 1099474 (pos: 199475 part: 300000 neg: 600000)
+# only neg
+[sample] pos = 194346, part = 541767, neg = 767069, total=1503182
+[filter] pos = 194346, part = 300000, neg = 600000, total=1094346

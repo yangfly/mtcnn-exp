@@ -50,7 +50,7 @@ class MtcnnLoss(gluon.Block):
         label = nd.concat(*labels, dim=0)
         cls_loss = self._softmax_loss(cls_pred, label)
         loc_loss = self._loc_loss(loc_pred, label)
-        sum_loss = self._cls_weight * cls_loss + self._loc_weight * loc_loss
+        sum_loss =  cls_loss + loc_loss
         cls_losses = self._split_like(cls_loss, labels)
         loc_losses = self._split_like(loc_loss, labels)
         sum_losses = self._split_like(sum_loss, labels)
@@ -69,7 +69,7 @@ class MtcnnLoss(gluon.Block):
         keep_num = round(self._ohem_ratio * nd.sum(mask).asscalar())
         keep_mask = loss.argsort(axis=0, is_ascend=False).argsort(axis=0) < keep_num
         loss = nd.where(keep_mask, loss, nd.zeros_like(loss))
-        return loss / max(keep_num, 1)
+        return loss / max(keep_num, 1) * self._cls_weight
         
     def _smoothl1_loss(self, pred, label, ratio=1.0):
         if pred.ndim > 2:
@@ -79,7 +79,7 @@ class MtcnnLoss(gluon.Block):
         loss = nd.where(loss > ratio, loss - 0.5 * ratio, (0.5 / ratio) * nd.square(loss))
         loss = nd.mean(loss, axis=1)
         loss = nd.where(mask, loss, nd.zeros_like(loss))
-        return loss / max(nd.sum(mask).asscalar(), 1)
+        return loss / max(nd.sum(mask).asscalar(), 1) * self._loc_weight
     
     def _euclid_loss(self, pred, label):
         if pred.ndim > 2:
@@ -88,7 +88,7 @@ class MtcnnLoss(gluon.Block):
         loss = nd.square(pred - label[:,1:]) / 2
         loss = nd.mean(loss, axis=1)
         loss = nd.where(mask, loss, nd.zeros_like(loss))
-        return loss / max(nd.sum(mask).asscalar(), 1)
+        return loss / max(nd.sum(mask).asscalar(), 1) * self._loc_weight
     
     def _split_like(self, loss, labels):
         losses = []

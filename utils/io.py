@@ -28,7 +28,7 @@ def init_net(net, resume, init, ctx):
         net.initialize(init=initializer, ctx=ctx)
 
 def load_model(prefix, epoch=0, input_size=12, ctx=mx.cpu()):
-    sym, arg_params, aux_params = mx.model.load_checkpoint(prefix, 0)
+    sym, arg_params, aux_params = mx.model.load_checkpoint(prefix, epoch)
     mod = mx.mod.Module(symbol=sym, context=ctx, label_names=None)
     mod.bind(data_shapes=[('data', (1, 3, input_size, input_size))], for_training=False)           
     mod.set_params(arg_params, aux_params, allow_missing=False)
