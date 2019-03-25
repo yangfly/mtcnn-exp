@@ -52,3 +52,17 @@
 # only neg
 [sample] pos = 194346, part = 541767, neg = 767069, total=1503182
 [filter] pos = 194346, part = 300000, neg = 600000, total=1094346
+
+
+mxnet  299999  0.963  0.708
+caffe  299999  0.970  0.730
+
+# 2019.3.25
+100% 12863/12863 [04:05<00:00, 52.41 annos/s]
+[train] sample: pos = 284704, part = 749760, neg = 819079, total=1853543
+[train] filter: pos = 284704, part = 300000, neg = 819079, total=1403783
+100% 12863/12863 [07:38<00:00, 28.04 annos/s]
+100% 3218/3218 [01:32<00:00, 34.76 annos/s]
+[val] sample: pos = 73094, part = 191622, neg = 206715, total=471431
+[val] filter: pos = 73094, part = 191622, neg = 206715, total=471431
+100% 3218/3218 [02:00<00:00, 37.79 annos/s]

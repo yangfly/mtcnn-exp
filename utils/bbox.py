@@ -39,13 +39,12 @@ def generate_bbox(cls_pred, bbox_pred, scale, threshold):
     if score.size == 0:
         return np.array([], dtype=np.float32)
     reg = bbox_pred[:, keep[0], keep[1]]
-    # print('scale = {}, cls_shape = {}, bbox_shape = {}'.format(scale, score.shape, reg.shape))
     bbox = np.vstack([score,
-                      np.round((stride * keep[1] + 1) * inv_scale - 1),
-                      np.round((stride * keep[0] + 1) * inv_scale - 1),
-                      np.round((stride * keep[1] + cell_size) * inv_scale),
-                      np.round((stride * keep[0] + cell_size) * inv_scale),
-                      reg]).T
+                    np.round((stride * keep[1]) * inv_scale),
+                    np.round((stride * keep[0]) * inv_scale),
+                    np.round((stride * keep[1] + cell_size) * inv_scale),
+                    np.round((stride * keep[0] + cell_size) * inv_scale),
+                    reg]).T
     return bbox
 
 def bbox_nms(bbox, threshold, mode='union'):
@@ -66,7 +65,7 @@ def bbox_nms(bbox, threshold, mode='union'):
     y1 = bbox[:, 2]
     x2 = bbox[:, 3]
     y2 = bbox[:, 4]
-    areas = (x2 - x1) * (y2 - y1)
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
     order = scores.argsort()[::-1]
 
     keep = []
@@ -77,8 +76,8 @@ def bbox_nms(bbox, threshold, mode='union'):
         yy1 = np.maximum(y1[i], y1[order[1:]])
         xx2 = np.minimum(x2[i], x2[order[1:]])
         yy2 = np.minimum(y2[i], y2[order[1:]])
-        w = np.maximum(0.0, xx2 - xx1)
-        h = np.maximum(0.0, yy2 - yy1)
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
         inter = w * h
         if mode == 'union':
             overlap = inter / (areas[i] + areas[order[1:]] - inter)
@@ -100,7 +99,7 @@ def bbox_refine(bbox):
     -------
         numpy.ndarray, n x 5 [score, x1, y1, x2, y2]
     """
-    bbsize = np.tile(bbox[:, 3:5] - bbox[:, 1:3], 2)
+    bbsize = np.tile(bbox[:, 3:5] - bbox[:, 1:3], 2) + 1
     return np.hstack([bbox[:, 0][..., None],
                       bbox[:, 1:5] + bbox[:, 5:] * bbsize])
 
@@ -118,26 +117,26 @@ def crop_pad(image, bbox, size):
         numpy.ndarray, n x 3 x size x size
     """
     # square bbox
-    wh = bbox[:, 3:5] - bbox[:, 1:3]
+    wh = bbox[:, 3:5] - bbox[:, 1:3] + 1
     maxl = np.max(wh, axis=1)
     x = np.round(bbox[:,1] + (wh[:,0] - maxl) * 0.5).astype(np.int)
     y = np.round(bbox[:,2] + (wh[:,1] - maxl) * 0.5).astype(np.int)
     maxl = maxl.astype(np.int)
     bbox[:, 1] = x
     bbox[:, 2] = y
-    bbox[:, 3] = x + maxl
-    bbox[:, 4] = y + maxl
+    bbox[:, 3] = x + maxl - 1
+    bbox[:, 4] = y + maxl - 1
 
     patchs = []
     h, w = image.shape[:2]
-    for x1, y1, ml in zip(x, y, maxl):
-        x2, y2 = x1 + ml, y1 + ml 
-        roi_on_image = [max(0, x1), max(0, y1), min(w, x2), min(h, y2)]
+    for x1, y1, x2, y2 in bbox[:, 1:]:
+        ml = x2 - x1 + 1
+        roi_on_image = [max(0, x1), max(0, y1), min(w-1, x2), min(h-1, y2)]
         roi_on_patch = [roi_on_image[0] - x1, roi_on_image[1] - y1,
                         roi_on_image[2] - x1, roi_on_image[3] - y1]
         patch = np.zeros((ml, ml, 3), dtype=np.float32)
-        patch[roi_on_patch[1]:roi_on_patch[3], roi_on_patch[0]:roi_on_patch[2], :] \
-            = image[roi_on_image[1]:roi_on_image[3], roi_on_image[0]:roi_on_image[2], :]
+        patch[roi_on_patch[1]:roi_on_patch[3]+1, roi_on_patch[0]:roi_on_patch[2]+1, :] \
+            = image[roi_on_image[1]:roi_on_image[3]+1, roi_on_image[0]:roi_on_image[2]+1, :]
         patchs.append(cv.resize(patch, (size, size)).transpose((2,0,1)))
     return np.stack(patchs, axis=0)
 
@@ -160,8 +159,8 @@ def bbox_iou(bbox, bboxes):
     tl = np.maximum(bbox[:2], bboxes[:, :2])
     br = np.minimum(bbox[2:4], bboxes[:, 2:4])
 
-    inter = np.prod(br - tl, axis=1) * (tl < br).all(axis=1)
-    area = np.prod(bbox[2:4] - bbox[:2], axis=0)
-    areas = np.prod(bboxes[:, 2:4] - bboxes[:, :2], axis=1)
+    inter = np.prod(br - tl + 1, axis=1) * (tl < br).all(axis=1)
+    area = np.prod(bbox[2:4] - bbox[:2] + 1, axis=0)
+    areas = np.prod(bboxes[:, 2:4] - bboxes[:, :2] + 1, axis=1)
     iou = inter / (area + areas - inter)
     return iou

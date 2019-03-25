@@ -13,7 +13,7 @@ def plot_bbox(image, bbox, linewidth=1.5):
         for bb in bbox:
             score = bb[0]
             x, y = bb[1:3]
-            w, h = bb[3:5] - bb[1:3]
+            w, h = bb[3:5] - bb[1:3] + 1
             rect = plt.Rectangle((x, y), w, h, fill=False, edgecolor='g', linewidth=linewidth)
             ax.add_patch(rect)
             ax.text(x, y-2, '{:.3f}'.format(score),
