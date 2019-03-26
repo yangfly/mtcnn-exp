@@ -6,8 +6,9 @@ import pylab
 import argparse
 import numpy as np
 import matplotlib
+from utils import FileLogger
 
-def load_roc(method, color, root, mmax):
+def load_roc(method, color, root, mmax, logger):
     rocs = []
     for subfix in ['-DiscROC.txt', '-ContROC.txt']:
         path = os.path.join(root, method + subfix)
@@ -20,7 +21,7 @@ def load_roc(method, color, root, mmax):
         label = '{}-{}: {:.3f}'.format(subfix[1], method, pr)
         pid = pylab.plot(data[:, 1], data[:, 0], color=color, linewidth=2)[0]
         rocs.append((pr, pid, label))
-    print('{:>10}  {}  {:.3f}  {:.3f}'.format(method, num, rocs[0][0], rocs[1][0]))
+    logger.info('{:>10}  {}  {:.3f}  {:.3f}'.format(method, num, rocs[0][0], rocs[1][0]))
     return rocs
 
 if __name__ == "__main__":
@@ -39,11 +40,12 @@ if __name__ == "__main__":
                 txt = txt[:-1]
             methods.append(txt)
 
+    logger = FileLogger(os.path.join(args.det_path, 'maps.txt'), False)
     colors = pylab.cm.Set1(np.linspace(0, 1, max(5, len(methods))))
     pylab.figure(figsize=(12, 8))
     algos = []
     for i, method in enumerate(methods):
-        rocs = load_roc(method, colors[i], args.det_path, args.max)
+        rocs = load_roc(method, colors[i], args.det_path, args.max, logger)
         algos.extend(rocs)
     algos = sorted(algos, key=lambda x: x[0], reverse=True)
 

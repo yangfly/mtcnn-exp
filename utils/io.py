@@ -71,18 +71,16 @@ def net_export(net, json):
         y = mx.sym.Group(y)
     y.save(json)
 
-def FileLogger(path):
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
+def FileLogger(path=None, format=True):
     logger = logging.getLogger()
-    formatter = logging.Formatter('[%(asctime)s] %(message)s')
     logger.setLevel(logging.INFO)
-    log_dir = os.path.dirname(path)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    if os.path.exists(path):
-        os.remove(path)
-    fh = logging.FileHandler(path)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
+    if path:
+        log_dir = os.path.dirname(path)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        fh = logging.FileHandler(path, mode='w')
+        if format:
+            formatter = logging.Formatter('[%(asctime)s] %(message)s')
+            fh.setFormatter(formatter)
+        logger.addHandler(fh)
     return logger

@@ -17,7 +17,7 @@ _C = EasyDict(dict(
     global_trails  = 50, # max trails to generate global negative samples
     overlap_trails = 5,  # max trails to generate overlap negative samples
     nearby_trails  = 20, # max trails to generate nearby positive and part samples 
-    ignore_face    = 40, # ignore small faces
+    ignore_face    = (20, 30), # ignore small faces
     filter_neg     = 600000,
     filter_part    = 300000
 ))
@@ -33,29 +33,29 @@ def random_sample(id, path, gt_bbox):
         size = npr.randint(12, min(width, height) / 2)
         nx = npr.randint(0, width - size)
         ny = npr.randint(0, height - size)
-        box = np.array([nx, ny, nx + size, ny + size])
+        box = np.array([nx, ny, nx + size - 1, ny + size - 1])
         max_iou = np.max(bbox_iou(box, gt_bbox))
-        if max_iou < _C.neg_thresh: #  or max_iou >= _C.part_thresh:
-            samples.append((id, max_iou, nx, ny, nx+size, ny+size))
+        if max_iou < _C.neg_thresh or max_iou >= _C.part_thresh:
+            samples.append((id, max_iou, *box))
 
     # generate local negative / positive / part samples
     for gt_box in gt_bbox:
         x1, y1, x2, y2 = gt_box
-        w, h = x2 - x1, y2 - y1
+        w, h = x2 - x1 + 1, y2 - y1 + 1
         # ignore small faces in case of imprecise groudtruth
-        if max(w, h) < _C.ignore_face:
+        if min(w, h) < _C.ignore_face[0] or max(w, h) < _C.ignore_face[1]:
             continue
         # generate negative samples that overlap with gt.
         for i in range(_C.overlap_trails):
             size = npr.randint(12, min(width, height) / 2)
-            nx = npr.randint(-size, w) + x1
-            ny = npr.randint(-size, h) + y1
+            nx = npr.randint(1-size, w-1) + x1
+            ny = npr.randint(1-size, h-1) + y1
             if nx < 0 or ny < 0 or nx + size > width or ny + size > height:
                 continue
-            box = np.array([nx, ny, nx + size, ny + size])
+            box = np.array([nx, ny, nx + size - 1, ny + size - 1])
             max_iou = np.max(bbox_iou(box, gt_bbox))
-            if max_iou < _C.neg_thresh: #  or max_iou >= _C.part_thresh:
-                samples.append((id, max_iou, nx, ny, nx+size, ny+size))
+            if max_iou < _C.neg_thresh or max_iou >= _C.part_thresh:
+                samples.append((id, max_iou, *box))
         # generate nearby positive and part samples
         for i in range(_C.nearby_trails):
             size = npr.randint(min(w,h) * 0.8, np.ceil(max(w,h) * 1.25))
@@ -65,10 +65,10 @@ def random_sample(id, path, gt_bbox):
             ny = y1 + dy + (h - size) // 2
             if nx < 0 or ny < 0 or nx + size > width or ny + size > height:
                 continue
-            box = np.array([nx, ny, nx + size, ny + size])
+            box = np.array([nx, ny, nx + size - 1, ny + size - 1])
             max_iou = np.max(bbox_iou(box, gt_bbox))
             if max_iou < _C.neg_thresh or max_iou >= _C.part_thresh:
-                samples.append((id, max_iou, nx, ny, nx+size, ny+size))
+                samples.append((id, max_iou, *box))
     return samples
 
 def filter_samples(samples, subset):
@@ -79,8 +79,8 @@ def filter_samples(samples, subset):
     neg_ids = np.where(ious < _C.neg_thresh)[0]
     print('[{}] sample: pos = {}, part = {}, neg = {}, total={}'.format(subset, len(pos_ids),
         len(part_ids), len(neg_ids), len(pos_ids) + len(part_ids) + len(neg_ids)))
-    part_keep = npr.choice(part_ids, size=min(_C.filter_part, len(part_ids)))
-    neg_keep = npr.choice(neg_ids, size=min(_C.filter_neg, len(neg_ids)))
+    part_keep = npr.choice(part_ids, size=min(max(_C.filter_part, len(pos_ids)), len(part_ids)))
+    neg_keep = npr.choice(neg_ids, size=min(max(_C.filter_neg, len(pos_ids)*3), len(neg_ids)))
     print('[{}] filter: pos = {}, part = {}, neg = {}, total={}'.format(subset, len(pos_ids),
         len(part_keep), len(neg_keep), len(pos_ids) + len(part_keep) + len(neg_keep)))
     keep = np.hstack([pos_ids, part_keep, neg_keep])
@@ -100,11 +100,8 @@ def sample_dataset(subset, annotxt, root, prefix):
             for i in range(num):
                 box = [int(a) for a in f.readline().strip().split()[:4]]
                 if all(x > 0 for x in box):
-                    # matlab to c style
                     box[2] += box[0]
                     box[3] += box[1]
-                    box[0] -= 1
-                    box[1] -= 1
                     gt_bbox.append(box)
             if gt_bbox:
                 annos.append((path, np.array(gt_bbox)))
@@ -136,8 +133,8 @@ def sample_dataset(subset, annotxt, root, prefix):
                 x1, y1, x2, y2 = box.astype(np.int)
                 label = np.empty(5, dtype=np.float32)
                 label[0] = ious[max_id] # iou
-                label[1:] = (gbox - box) / (x2 - x1) # delta
-                crop = image[y1:y2, x1:x2, :] 
+                label[1:] = (gbox - box) / (x2 - x1 + 1) # delta
+                crop = image[y1:y2+1, x1:x2+1, :] 
                 data = cv.resize(crop, (12, 12))
                 header = mx.recordio.IRHeader(0, label, unique_id, 0)
                 try:
@@ -173,11 +170,8 @@ def test():
             for i in range(num):
                 box = [int(a) for a in f.readline().strip().split()[:4]]
                 if all(x > 0 for x in box):
-                    # matlab to c style
                     box[2] += box[0]
                     box[3] += box[1]
-                    box[0] -= 1
-                    box[1] -= 1
                     gt_bbox.append(box)
             if gt_bbox:
                 annos.append((path, np.array(gt_bbox)))

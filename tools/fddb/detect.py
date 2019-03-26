@@ -1,5 +1,3 @@
-from __future__ import division
-
 import os
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 import argparse

@@ -66,7 +66,7 @@ def parse_args():
                       help='The ratio of loss to been kept after online hard example mining.')
     loss.add_argument('--cls-weight', type=float, default=1.0,
                       help='Loss weight for cls_loss.')
-    loss.add_argument('--loc-weight', type=float, default=4.0,
+    loss.add_argument('--loc-weight', type=float, default=5.0,
                       help='Loss weight for loc_loss.')
     loss.add_argument('--loc-loss', type=str, default='smoothl1',
                       help='Which loss as loc_loss, optional in [smoothl1, euclid].')
@@ -183,6 +183,7 @@ def train(args):
             ploter.plot(save_path=args.save_prefix + 'train.png')
             utils.save_model(net, args.save_prefix, epoch, maps, args.epochs)
     utils.net_export(net, args.save_prefix + args.network + '.json')
+    utils.fddb_eval(range(args.epochs-5, args.epochs+1), args.save_prefix, ctx[-1])
 
 if __name__ == '__main__':
     args = parse_args()
