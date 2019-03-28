@@ -46,28 +46,21 @@
   celeba 数据集 生成负样本
 
 
-  - mxnet-mtcnn: 
-    - Sample: 12880 images done, pos: 199475 part: 548912 neg: 812070
-    - Choose: total 1099474 (pos: 199475 part: 300000 neg: 600000)
-# only neg
-[sample] pos = 194346, part = 541767, neg = 767069, total=1503182
-[filter] pos = 194346, part = 300000, neg = 600000, total=1094346
+- mxnet-mtcnn: 
+- Sample: 12880 images done, pos: 199475 part: 548912 neg: 812070
+- Choose: total 1099474 (pos: 199475 part: 300000 neg: 600000)
 
+# dataset
+- v1
+[train] sample: pos = 205458, part = 533325, neg = 766085, total=1504868
+[train] filter: pos = 205458, part = 300000, neg = 600000, total=1105458
+[val] sample: pos = 52709, part = 137647, neg = 192566, total=382922
+[val] filter: pos = 52709, part = 137647, neg = 192566, total=382922
 
-mxnet  299999  0.963  0.708
-caffe  299999  0.970  0.730
+- v2
+[train] sample: pos = 195415, part = 540703, neg = 767363, total=1503481
+[train] filter: pos = 195415, part = 300000, neg = 600000, total=1095415
+[val] sample: pos = 50587, part = 139040, neg = 193038, total=382665
+[val] filter: pos = 50587, part = 139040, neg = 193038, total=382665
 
-# 2019.3.25
-100% 12863/12863 [04:05<00:00, 52.41 annos/s]
-[train] sample: pos = 284704, part = 749760, neg = 819079, total=1853543
-[train] filter: pos = 284704, part = 300000, neg = 819079, total=1403783
-100% 12863/12863 [07:38<00:00, 28.04 annos/s]
-100% 3218/3218 [01:32<00:00, 34.76 annos/s]
-[val] sample: pos = 73094, part = 191622, neg = 206715, total=471431
-[val] filter: pos = 73094, part = 191622, neg = 206715, total=471431
-100% 3218/3218 [02:00<00:00, 37.79 annos/s]
-029  299999  0.957  0.703
-031  299999  0.956  0.702
-028  299999  0.957  0.701
-030  299999  0.955  0.701
-032  299999  0.954  0.701
+python tools/fddb/eval.py -s cpnet models/mtcnn/cpnet 27,28,29,30,31,32 3 300000

@@ -87,6 +87,7 @@ class CustomRecordIter(mx.io.DataIter):
                 label[i, (1,3)] = label[i, (3,1)] * -1
 
 def MtcnnDataset(network, subset, size, batch_size, num_workers, mean=127.5, std=0.0078125):
+    network = 'pnet'
     dataset = CustomRecordIter(
 		path_imgrec        = 'data/widerface/mtcnn/{}_{}.rec'.format(network, subset),
         path_imgidx        = 'data/widerface/mtcnn/{}_{}.idx'.format(network, subset),

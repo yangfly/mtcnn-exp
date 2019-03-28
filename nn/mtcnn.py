@@ -4,28 +4,7 @@ import mxnet as mx
 from mxnet import gluon
 from mxnet.gluon import nn as gnn
 
-__all__ = ['get_mtcnn', 'Pnet', 'Rnet', 'Onet', 'Mtcnn']
-
-def _conv_bn(channels, kernel, stride=1, pad=0, dilate=1, groups=1,
-             act='relu', **kwargs):
-    block = gnn.HybridSequential('conv_bn')
-    block.add(gnn.Conv2D(channels, kernel, stride, pad, dilate, groups,
-                        activation=None, use_bias=False, **kwargs))
-    block.add(gnn.BatchNorm())
-    if act is not None:
-        block.add(gnn.Activation(act))
-    return block
-
-def get_mtcnn(network):
-    if network == 'pnet':
-        net = Pnet(12)
-    elif network == 'rnet':
-        net = Rnet(24)
-    elif network == 'onet':
-        net = Onet(48)
-    else:
-        raise ValueError('Unsupported network in mtcnn: {}'.format(network))
-    return net
+__all__ = ['Pnet', 'Rnet', 'Onet', 'Mtcnn']
 
 class Pnet(gluon.HybridBlock):
     """Proposal Network"""
@@ -33,14 +12,11 @@ class Pnet(gluon.HybridBlock):
         super(Pnet, self).__init__(**kwargs)
         self.size = size
         self.base = gnn.HybridSequential()
-        self.base.add(gnn.Conv2D(10, 3))
-        self.base.add(gnn.PReLU())
-        # caffe tradition pool with ceil
-        self.base.add(gnn.MaxPool2D(ceil_mode=True))
-        self.base.add(gnn.Conv2D(16, 3))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.Conv2D(32, 3))
-        self.base.add(gnn.PReLU())
+        self.base.add(
+            gnn.Conv2D(10, 3), gnn.PReLU(),
+            gnn.MaxPool2D(ceil_mode=True), # caffe default
+            gnn.Conv2D(16, 3), gnn.PReLU(),
+            gnn.Conv2D(32, 3), gnn.PReLU())
         self.conv4_1 = gnn.Conv2D(2, 1)
         self.conv4_2 = gnn.Conv2D(4, 1)
 
@@ -59,16 +35,13 @@ class Rnet(gluon.HybridBlock):
         super(Rnet, self).__init__(**kwargs)
         self.size = size
         self.base = gnn.HybridSequential()
-        self.base.add(gnn.Conv2D(28, 3))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.MaxPool2D(3, 2, ceil_mode=True))
-        self.base.add(gnn.Conv2D(48, 3))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.MaxPool2D(3, 2, ceil_mode=True))
-        self.base.add(gnn.Conv2D(64, 2))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.Dense(128))
-        self.base.add(gnn.PReLU())
+        self.base.add(
+            gnn.Conv2D(28, 3), gnn.PReLU(),
+            gnn.MaxPool2D(3, 2, ceil_mode=True),
+            gnn.Conv2D(48, 3), gnn.PReLU(),
+            gnn.MaxPool2D(3, 2, ceil_mode=True),
+            gnn.Conv2D(64, 2), gnn.PReLU(),
+            gnn.Dense(128), gnn.PReLU())
         self.fc5_1 = gnn.Dense(2)
         self.fc5_2 = gnn.Dense(4)
 
@@ -87,20 +60,15 @@ class Onet(gluon.HybridBlock):
         super(Onet, self).__init__(**kwargs)
         self.size = size
         self.base = gnn.HybridSequential()
-        self.base.add(gnn.Conv2D(32, 3))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.MaxPool2D(3, 2, ceil_mode=True))
-        self.base.add(gnn.Conv2D(64, 3))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.MaxPool2D(3, 2, ceil_mode=True))
-        self.base.add(gnn.Conv2D(64, 3))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.MaxPool2D(2, 2, ceil_mode=True))
-        self.base.add(gnn.Conv2D(128, 2))
-        self.base.add(gnn.PReLU())
-        self.base.add(gnn.Dense(256))
-        self.base.add(gnn.Dropout(0.25))
-        self.base.add(gnn.PReLU())
+        self.base.add(
+            gnn.Conv2D(32, 3), gnn.PReLU(),
+            gnn.MaxPool2D(3, 2, ceil_mode=True),
+            gnn.Conv2D(64, 3), gnn.PReLU(),
+            gnn.MaxPool2D(3, 2, ceil_mode=True),
+            gnn.Conv2D(64, 3), gnn.PReLU(),
+            gnn.MaxPool2D(2, 2, ceil_mode=True),
+            gnn.Conv2D(128, 2), gnn.PReLU(),
+            gnn.Dense(256), gnn.PReLU())
         self.fc6_1 = gnn.Dense(2)
         self.fc6_2 = gnn.Dense(4)
 
@@ -239,7 +207,6 @@ if __name__ == '__main__':
     for net, size in zip([Pnet(), Rnet(), Onet()], [12, 24, 48]):
         # print(net)
         net.hybridize()
-        import mxnet as mx
         x = mx.sym.var('data')
         sym = net(x)
         print('')

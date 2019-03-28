@@ -1,19 +1,20 @@
 import os
+import sys
 import cv2 as cv
+import mxnet as mx
+import argparse
 import subprocess
 from multiprocessing import Process
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 import nn
 
-__all__ = ['fddb_eval', 'MPDet']
-
-def evaluate(epoch, save_prefix, maxfp, ctx):
+def evaluate(network, epoch, save_prefix, maxfp, ctx):
     fddb_prefix = os.path.join(save_prefix, 'fddb')
     image_root = 'data/fddb/images'
     names = [name.strip() for name in open('data/fddb/eval/imList.txt')]
     if not os.path.exists(fddb_prefix):
         os.mkdir(fddb_prefix)
-    mtcnn = nn.MtcnnV2(pnet=save_prefix + '/{:03d}.params'.format(epoch), ctx=ctx)
+    mtcnn = nn.MtcnnV2(pnet=nn.load_model(network, save_prefix + '/{:03d}.params'.format(epoch), ctx))
     # detect fddb images and write to detect file
     det_name = '{:s}/{:03d}'.format(fddb_prefix, epoch)
     with open(det_name + '.txt', 'w') as f:
@@ -35,7 +36,8 @@ def evaluate(epoch, save_prefix, maxfp, ctx):
                      '-r', det_name + '-'], stdout=subprocess.PIPE)
                     
 class MPDet(object):
-    def __init__(self, save_prefix, maxfp, ctx):
+    def __init__(self, network, save_prefix, maxfp, ctx):
+        self._network = network
         self._save_prefix = save_prefix
         self._maxfp = maxfp
         self._ctx = ctx
@@ -43,7 +45,7 @@ class MPDet(object):
 
     def add(self, epoch):
         self._workers.append(Process(target=evaluate,
-            args = (epoch, self._save_prefix, self._maxfp, self._ctx)))
+            args = (self._network, epoch, self._save_prefix, self._maxfp, self._ctx)))
         self._workers[-1].start()
     
     def join(self, show=False):
@@ -55,18 +57,18 @@ class MPDet(object):
             args.append('-s')
         subprocess.call(args)
 
-def fddb_eval(epochs, save_prefix, ctx, maxfp=300000, show=True):
-    mpd = MPDet(save_prefix, maxfp, ctx)
-    for epoch in epochs:
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Eval model snapshots.')
+    parser.add_argument('network', type=str, help='network name.')
+    parser.add_argument('path', type=str, help='model path.')
+    parser.add_argument('epochs', type=str, help='model epochs.')
+    parser.add_argument('gpu', type=int, help='device id.')
+    parser.add_argument('-s', '--show', action='store_true', help='show ploted image.')
+    parser.add_argument('maxfp', type=int, default=300000, help='max false positive.')
+    args = parser.parse_args()
+    args.epochs = map(int, args.epochs.split(','))
+    args.ctx = mx.gpu(args.gpu)
+    mpd = MPDet(args.network, args.path, args.maxfp, args.ctx)
+    for epoch in args.epochs:
         mpd.add(epoch)
-    mpd.join(show)
-
-if __name__ == '__main__':
-    import mxnet as mx
-    import sys
-    # mpd = MPDet('models/mtcnn/pnet2', 300000, mx.gpu(7))
-    mpd = MPDet(sys.argv[1], 300000, mx.gpu(int(sys.argv[2])))
-    for epoch in range(27, 33):
-        mpd.add(epoch)
-    mpd.join(True)
-
+    mpd.join(args.show)

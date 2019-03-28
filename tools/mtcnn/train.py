@@ -3,6 +3,7 @@ import os
 os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 import time
 import argparse
+import subprocess
 import mxnet as mx
 from mxnet.gluon.utils import split_and_load
 import nn
@@ -103,7 +104,7 @@ def train(args):
     utils.random_seed(args.seed)
     ctx = [mx.gpu(int(i)) for i in args.gpus.split(',') if i.strip()]
     ctx = ctx if ctx else [mx.cpu()]
-    net = nn.get_mtcnn(args.network)
+    net = nn.get_net(args.network)
     utils.init_net(net, args.resume, args.init, ctx)
     train_data = utils.MtcnnDataset(args.network, 'train', net.size, args.batch_size, args.num_workers)
     val_data = utils.MtcnnDataset(args.network, 'val', net.size, args.batch_size, args.num_workers)
@@ -183,7 +184,11 @@ def train(args):
             ploter.plot(save_path=args.save_prefix + 'train.png')
             utils.save_model(net, args.save_prefix, epoch, maps, args.epochs)
     utils.net_export(net, args.save_prefix + args.network + '.json')
-    utils.fddb_eval(range(args.epochs-5, args.epochs+1), args.save_prefix, ctx[-1])
+
+    # python tools/fddb/eval.py -s models/mtcnn/v3 27,28,29,30,31,32 1 300000
+    del net
+    subprocess.call(['python', 'tools/fddb/eval.py', '-s', args.network, args.save_prefix,
+                     ','.join(map(str, range(args.epochs-5, args.epochs+1))), str(args.gpus[0]), str(300000)], stdout=subprocess.PIPE)
 
 if __name__ == '__main__':
     args = parse_args()
